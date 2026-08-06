@@ -14,12 +14,10 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       "inline-flex items-center justify-center font-medium transition-colors rounded-xl disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
 
     const variants = {
-      primary:
-        "bg-[var(--color-accent)] text-black hover:bg-[var(--color-accent-hover)]",
+      primary: "bg-accent text-black hover:bg-accent-hover",
       secondary:
-        "bg-[var(--color-card)] text-[var(--color-foreground)] border border-[var(--color-border)] hover:bg-[var(--color-border)]",
-      ghost:
-        "text-[var(--color-muted)] hover:text-[var(--color-foreground)] hover:bg-[var(--color-card)]",
+        "bg-card text-foreground border border-border hover:bg-border",
+      ghost: "text-muted hover:text-foreground hover:bg-card",
     }
 
     const sizes = {

@@ -11,7 +11,7 @@ import AuthProvider from "./context/AuthContext"
 
 export default function App() {
   return (
-    <NeonAuthUIProvider authClient={authClient}>
+    <NeonAuthUIProvider authClient={authClient} defaultTheme="dark">
       <AuthProvider>
         <BrowserRouter>
           <div className="min-h-screen flex flex-col">
