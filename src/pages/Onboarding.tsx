@@ -5,7 +5,8 @@ import { Select } from "../components/ui/Select"
 import { useState } from "react"
 import { Textarea } from "../components/ui/Textarea"
 import { Button } from "../components/ui/Button"
-import { ArrowRight } from "lucide-react"
+import { ArrowRight, Loader2 } from "lucide-react"
+import type { UserProfile } from "../types"
 
 const goalOptions = [
   { value: "bulk", label: "Build Muscle (Bulk)" },
@@ -51,7 +52,8 @@ const splitOptions = [
 
 export default function Onboarding() {
   const { user, saveProfile } = useAuth()
-
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     goal: "bulk",
     experience: "intermediate",
@@ -70,9 +72,26 @@ export default function Onboarding() {
     setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
-  async function handleQuestionnaire(e:React.SubmitEvent) {
+  async function handleQuestionnaire(e: React.SubmitEvent) {
     e.preventDefault()
-    
+
+    const profile: Omit<UserProfile, "userId" | "updatedAt"> = {
+      goal: formData.goal as UserProfile["goal"],
+      experience: formData.experience as UserProfile["experience"],
+      daysPerWeek: parseInt(formData.daysPerWeek),
+      sessionLength: parseInt(formData.sessionLength),
+      equipment: formData.equipment as UserProfile["equipment"],
+      injuries: formData.injuries || undefined,
+      preferredSplit: formData.preferredSplit as UserProfile["preferredSplit"],
+    }
+    try {
+      await saveProfile(profile)
+      setIsGenerating(true)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save profile")
+    } finally {
+      setIsGenerating(false)
+    }
   }
 
   return (
@@ -81,81 +100,92 @@ export default function Onboarding() {
         <div className="max-w-xl mx-auto">
           {/* Progress Indicator */}
 
-          {/* Step 1 Questionnaire */}
-          <Card variant="bordered">
-            <h1 className="text-2xl font-bold mb-2">Tell Us About Yourself</h1>
-            <p className="text-muted mb-6">
-              Help us create the perfect plan for you.
-            </p>
+          {!isGenerating ? (
+            <Card variant="bordered">
+              <h1 className="text-2xl font-bold mb-2">
+                Tell Us About Yourself
+              </h1>
+              <p className="text-muted mb-6">
+                Help us create the perfect plan for you.
+              </p>
 
-            <form
-              action=""
-              className="space-y-5"
-              onSubmit={handleQuestionnaire}
-            >
-              <Select
-                id="goal"
-                label="What's your primary goal?"
-                options={goalOptions}
-                value={formData.goal}
-                onChange={(e) => updateForm("goal", e.target.value)}
-              />
-              <Select
-                id="experience"
-                label="Training experience"
-                options={experienceOptions}
-                value={formData.experience}
-                onChange={(e) => updateForm("experience", e.target.value)}
-              />
-              <div className="grid grid-cols-2 gap-4">
+              <form
+                action=""
+                className="space-y-5"
+                onSubmit={handleQuestionnaire}
+              >
                 <Select
-                  id="daysPerWeek"
-                  label="Days per week"
-                  options={daysOptions}
-                  value={formData.daysPerWeek}
-                  onChange={(e) => updateForm("daysPerWeek", e.target.value)}
+                  id="goal"
+                  label="What's your primary goal?"
+                  options={goalOptions}
+                  value={formData.goal}
+                  onChange={(e) => updateForm("goal", e.target.value)}
                 />
                 <Select
-                  id="sessionLength"
-                  label="Session length"
-                  options={sessionOptions}
-                  value={formData.sessionLength}
-                  onChange={(e) => updateForm("sessionLength", e.target.value)}
+                  id="experience"
+                  label="Training experience"
+                  options={experienceOptions}
+                  value={formData.experience}
+                  onChange={(e) => updateForm("experience", e.target.value)}
                 />
-              </div>
-              <Select
-                id="equipment"
-                label="Equipment access"
-                options={equipmentOptions}
-                value={formData.equipment}
-                onChange={(e) => updateForm("equipment", e.target.value)}
-              />
+                <div className="grid grid-cols-2 gap-4">
+                  <Select
+                    id="daysPerWeek"
+                    label="Days per week"
+                    options={daysOptions}
+                    value={formData.daysPerWeek}
+                    onChange={(e) => updateForm("daysPerWeek", e.target.value)}
+                  />
+                  <Select
+                    id="sessionLength"
+                    label="Session length"
+                    options={sessionOptions}
+                    value={formData.sessionLength}
+                    onChange={(e) =>
+                      updateForm("sessionLength", e.target.value)
+                    }
+                  />
+                </div>
+                <Select
+                  id="equipment"
+                  label="Equipment access"
+                  options={equipmentOptions}
+                  value={formData.equipment}
+                  onChange={(e) => updateForm("equipment", e.target.value)}
+                />
 
-              <Select
-                id="preferredSplit"
-                label="Preferred training split"
-                options={splitOptions}
-                value={formData.preferredSplit}
-                onChange={(e) => updateForm("preferredSplit", e.target.value)}
-              />
+                <Select
+                  id="preferredSplit"
+                  label="Preferred training split"
+                  options={splitOptions}
+                  value={formData.preferredSplit}
+                  onChange={(e) => updateForm("preferredSplit", e.target.value)}
+                />
 
-              <Textarea
-                id="injuries"
-                label="Any injuries or limitations? (optional)"
-                placeholder="E.g., lower back issues, shoulder impingement..."
-                rows={3}
-                value={formData.injuries}
-                onChange={(e) => updateForm("injuries", e.target.value)}
-              />
-            </form>
-            <div className="flex gap-3 pt-2">
-              <Button type="submit" className="flex-1 gap-2">
-                Generate My Plan <ArrowRight className="w-4 h-4"/>
-              </Button>
-            </div>
-          </Card>
-
-          {/* Step 2 Generating */}
+                <Textarea
+                  id="injuries"
+                  label="Any injuries or limitations? (optional)"
+                  placeholder="E.g., lower back issues, shoulder impingement..."
+                  rows={3}
+                  value={formData.injuries}
+                  onChange={(e) => updateForm("injuries", e.target.value)}
+                />
+                <div className="flex gap-3 pt-2">
+                  <Button type="submit" className="flex-1 gap-2">
+                    Generate My Plan <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </div>
+              </form>
+            </Card>
+          ) : (
+            <Card variant="bordered" className="text-center py-16">
+              <Loader2 className="w-12 h-12 text-accent mx-auto mb-6 animate-spin" />
+              <h1 className="text-2xl font-bold mb-2">Creating your Plan</h1>
+              <p className="text-muted">
+                Our Ai is building your personalized training program...
+              </p>
+            </Card>
+          )}
         </div>
       </div>
     </SignedIn>
