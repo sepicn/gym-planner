@@ -1,20 +1,25 @@
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
   type ReactNode,
 } from "react"
-import type { User, UserProfile } from "../types"
+import type { TrainingPlan, User, UserProfile } from "../types"
 import { authClient } from "../lib/auth"
 import { api } from "../lib/api"
 
 interface AuthUIContextType {
   user: User | null
+  plan: TrainingPlan | null
   isLoading: boolean
   saveProfile: (
     profile: Omit<UserProfile, "userId" | "updatedAt">,
   ) => Promise<void>
+  generatePlan: () => Promise<void>
+  refreshData: () => Promise<void>
 }
 
 const AuthContext = createContext<AuthUIContextType | null>(null)
@@ -22,7 +27,8 @@ const AuthContext = createContext<AuthUIContextType | null>(null)
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const [neonUser, setNeonUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
-  const [isGenerating, setIsGenerating] = useState(false)
+  const isRefreshingRef = useRef(false)
+  const [plan, setPlan] = useState<TrainingPlan | null>(null)
 
   useEffect(() => {
     async function loadUser() {
@@ -42,6 +48,47 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     loadUser()
   }, [])
 
+  useEffect(() => {
+    if (!isLoading) {
+      if (neonUser?.id) {
+        refreshData()
+      } else {
+        setPlan(null)
+      }
+      setIsLoading(false)
+    }
+  }, [neonUser?.id, isLoading])
+
+  // refreshData memoize
+
+  const refreshData = useCallback(async () => {
+    if (!neonUser || isRefreshingRef.current) return
+
+    isRefreshingRef.current = true
+
+    try {
+      // const profileData =
+
+      const planData = await api.getCurrentPlan(neonUser.id).catch(() => null)
+
+      if (planData) {
+        setPlan({
+          id: planData.id,
+          userId: planData.userId,
+          overview: planData.planJson.overview,
+          weeklySchedule: planData.planJson.weeklySchedule,
+          progression: planData.planJson.progression,
+          version: planData.version,
+          createdAt: planData.createdAt,
+        })
+      }
+    } catch (error) {
+      console.error("Error refreshing data:", error)
+    } finally {
+      isRefreshingRef.current = false
+    }
+  }, [neonUser?.id])
+
   async function saveProfile(
     profileData: Omit<UserProfile, "userId" | "updatedAt">,
   ) {
@@ -50,10 +97,29 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     }
 
     await api.saveProfile(neonUser.id, profileData)
+    await refreshData()
+  }
+
+  async function generatePlan() {
+    if (!neonUser) {
+      throw new Error("User must be authenticated to generate plan")
+    }
+
+    await api.generatePlan(neonUser.id)
+    await refreshData()
   }
 
   return (
-    <AuthContext.Provider value={{ user: neonUser, isLoading, saveProfile }}>
+    <AuthContext.Provider
+      value={{
+        user: neonUser,
+        plan,
+        isLoading,
+        saveProfile,
+        generatePlan,
+        refreshData,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   )

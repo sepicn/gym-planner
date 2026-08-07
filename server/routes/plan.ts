@@ -1,5 +1,8 @@
 import { Router, type Request, type Response } from "express"
 import { prisma } from "../lib/prisma"
+import { generateTrainingPlan } from "../src/lib/ai"
+import { error } from "node:console"
+import { version } from "node:os"
 
 export const planRouter = Router()
 
@@ -30,6 +33,16 @@ planRouter.post("/generate", async (req: Request, res: Response) => {
     const nextVersion = latestPlan ? latestPlan.version + 1 : 1
     let planJson
 
+    try {
+      planJson = await generateTrainingPlan(profile)
+    } catch (error) {
+      console.error("AI generation failed", error)
+      return res.status(500).json({
+        error: "Failed to generate training plan. Please try again.",
+        details: error instanceof Error ? error.message : "Unknown user",
+      })
+    }
+
     const planText = JSON.stringify(planJson, null, 2)
 
     const newPlan = await prisma.training_plans.create({
@@ -45,6 +58,37 @@ planRouter.post("/generate", async (req: Request, res: Response) => {
       id: newPlan.id,
       version: newPlan.version,
       createdAt: newPlan.created_at,
+    })
+  } catch (error) {
+    console.error("Error generating plan: ", error)
+    res.status(500).json({ error: "Failed to generate plan" })
+  }
+})
+
+planRouter.get("/current", async (req: Request, res: Response) => {
+  try {
+    const userId = req.query.userId as string
+
+    if (!userId) {
+      return res.status(400).json({ error: "User ID is required" })
+    }
+
+    const plan = await prisma.training_plans.findFirst({
+      where: { user_id: userId },
+      orderBy: { created_at: "desc" },
+    })
+
+    if (!plan) {
+      return res.status(404).json({ error: "No plan found" })
+    }
+
+    res.json({
+      id: plan.id,
+      userId: plan.user_id,
+      planJson: plan.plan_json,
+      planText: plan.plan_text,
+      version: plan.version,
+      createdAt: plan.created_at,
     })
   } catch (error) {
     console.error("Error generating plan: ", error)

@@ -7,6 +7,7 @@ import { Textarea } from "../components/ui/Textarea"
 import { Button } from "../components/ui/Button"
 import { ArrowRight, Loader2 } from "lucide-react"
 import type { UserProfile } from "../types"
+import { Navigate, useNavigate } from "react-router-dom"
 
 const goalOptions = [
   { value: "bulk", label: "Build Muscle (Bulk)" },
@@ -51,7 +52,7 @@ const splitOptions = [
 ]
 
 export default function Onboarding() {
-  const { user, saveProfile } = useAuth()
+  const { user, saveProfile , generatePlan} = useAuth()
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
@@ -63,6 +64,8 @@ export default function Onboarding() {
     injuries: "",
     preferredSplit: "upper_lower",
   })
+  const navigate = useNavigate()
+
 
   if (!user) {
     return <RedirectToSignIn />
@@ -87,6 +90,8 @@ export default function Onboarding() {
     try {
       await saveProfile(profile)
       setIsGenerating(true)
+      await generatePlan()
+      navigate("/profile")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to save profile")
     } finally {

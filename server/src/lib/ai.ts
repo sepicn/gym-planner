@@ -7,7 +7,7 @@ dotenv.config()
 
 export async function generateTrainingPlan(
   profile: UserProfile | Record<string, any>,
-): Promise<TrainingPlan> {
+): Promise<Omit<TrainingPlan, "id" | "userId" | "version" | "createdAt">> {
   const normalizedProfile: UserProfile = {
     goal: profile.goal || "bulk",
     experience: profile.experience || "intermediate",
@@ -36,23 +36,32 @@ export async function generateTrainingPlan(
   // Prompt
   const prompt = buildPrompt(normalizedProfile)
 
+  // `reasoning` is an OpenRouter extension, not part of the OpenAI SDK types.
+  const params: OpenAi.Chat.ChatCompletionCreateParamsNonStreaming & {
+    reasoning?: { enabled: boolean }
+  } = {
+    model: "nvidia/nemotron-3-super-120b-a12b:free",
+    messages: [
+      {
+        role: "system",
+        content:
+          "You are an expert fitness trainer and program designer. You must respond with valid JSON only. Do not include any markdown, reasoning, or additional text.",
+      },
+      {
+        role: "user",
+        content: prompt,
+      },
+    ],
+    temperature: 0.7,
+    max_tokens: 8000,
+    response_format: { type: "json_object" },
+    // Reasoning models write the plan into the `reasoning` field and leave
+    // `content` as an empty skeleton, so keep thinking off.
+    reasoning: { enabled: false },
+  }
+
   try {
-    const completion = await openai.chat.completions.create({
-      model: "nvidia/nemotron-3-nano-30b-a3b:free",
-      messages: [
-        {
-          role: "system",
-          content:
-            "You are an expert fitness trainer and program designer. You must respond with valid JSON only. Do not include any markdown, reasoning, or additional text.",
-        },
-        {
-          role: "user",
-          content: prompt,
-        },
-      ],
-      temperature: 0.7,
-      response_format: { type: "json_object" },
-    })
+    const completion = await openai.chat.completions.create(params)
 
     const content = completion.choices[0].message.content
 
@@ -65,8 +74,14 @@ export async function generateTrainingPlan(
     }
 
     const planData = JSON.parse(content)
+    const plan = formatPlanResponse(planData, normalizedProfile)
 
-    return formatPlanResponse(planData, profile)
+    if (plan.weeklySchedule.length === 0) {
+      console.error("[AI] Model returned no workout days. Raw content:", content)
+      throw new Error("AI returned an empty training plan")
+    }
+
+    return plan
   } catch (error) {
     console.error("[AI] Error generating training plan:", error)
     throw error
