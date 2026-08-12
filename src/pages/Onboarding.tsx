@@ -1,5 +1,5 @@
 import { RedirectToSignIn, SignedIn } from "@neondatabase/neon-js/auth/react"
-import { useAuth } from "../context/AuthContext"
+import { useAuth } from "../context/auth-context"
 import { Card } from "../components/ui/Card"
 import { Select } from "../components/ui/Select"
 import { useState } from "react"
@@ -52,8 +52,9 @@ const splitOptions = [
 ]
 
 export default function Onboarding() {
-  const { user, isLoading, saveProfile, generatePlan } = useAuth()
-  const [isGenerating, setIsGenerating] = useState(false)
+  const { user, isLoading, saveProfile, generatePlan, isGeneratingPlan } =
+    useAuth()
+  const [isSubmitting, setIsSubmitting] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
     goal: "bulk",
@@ -81,7 +82,10 @@ export default function Onboarding() {
 
   async function handleQuestionnaire(e: React.SubmitEvent) {
     e.preventDefault()
+    if (isSubmitting) return
+
     setError("")
+    setIsSubmitting(true)
 
     const profile: Omit<UserProfile, "userId" | "updatedAt"> = {
       goal: formData.goal as UserProfile["goal"],
@@ -94,13 +98,14 @@ export default function Onboarding() {
     }
     try {
       await saveProfile(profile)
-      setIsGenerating(true)
       await generatePlan()
       navigate("/profile")
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to save profile")
+      setError(
+        err instanceof Error ? err.message : "Failed to create your plan.",
+      )
     } finally {
-      setIsGenerating(false)
+      setIsSubmitting(false)
     }
   }
 
@@ -108,7 +113,7 @@ export default function Onboarding() {
     <SignedIn>
       <div className="min-h-screen pt-24 pb-12 px-6">
         <div className="max-w-xl mx-auto">
-          {!isGenerating ? (
+          {!isSubmitting ? (
             <Card variant="bordered">
               <h1 className="text-2xl font-bold mb-2">
                 Tell Us About Yourself
@@ -184,7 +189,12 @@ export default function Onboarding() {
                 )}
 
                 <div className="flex gap-3 pt-2">
-                  <Button type="submit" className="flex-1 gap-2">
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    isLoading={isSubmitting}
+                    loadingText="Working..."
+                  >
                     Generate My Plan <ArrowRight className="w-4 h-4" />
                   </Button>
                 </div>
@@ -193,9 +203,13 @@ export default function Onboarding() {
           ) : (
             <Card variant="bordered" className="text-center py-16">
               <Loader2 className="w-12 h-12 text-accent mx-auto mb-6 animate-spin" />
-              <h1 className="text-2xl font-bold mb-2">Creating your Plan</h1>
+              <h1 className="text-2xl font-bold mb-2">
+                {isGeneratingPlan ? "Creating your plan" : "Saving your answers"}
+              </h1>
               <p className="text-muted">
-                Our AI is building your personalized training program...
+                {isGeneratingPlan
+                  ? "Our AI is building your personalized training program..."
+                  : "Just a moment."}
               </p>
             </Card>
           )}

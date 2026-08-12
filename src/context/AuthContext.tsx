@@ -1,29 +1,15 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useRef,
-  useState,
-  type ReactNode,
-} from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useStore } from "@neondatabase/neon-js/auth/react"
 import type { TrainingPlan, User, UserProfile } from "../types"
 import { authClient } from "../lib/auth"
 import { api } from "../lib/api"
+import { AuthContext } from "./auth-context"
 
-interface AuthUIContextType {
-  user: User | null
-  plan: TrainingPlan | null | undefined
-  isLoading: boolean
-  saveProfile: (
-    profile: Omit<UserProfile, "userId" | "updatedAt">,
-  ) => Promise<void>
-  generatePlan: () => Promise<void>
-  refreshData: () => Promise<void>
+interface PlanState {
+  userId: string
+  plan: TrainingPlan | null
+  error: string | null
 }
-
-const AuthContext = createContext<AuthUIContextType | null>(null)
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
   const session = useStore(authClient.useSession)
@@ -31,11 +17,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const userId = user?.id ?? null
 
   // Keyed to its owner so the previous account's plan can never surface while
-  // the next fetch is in flight. plan: undefined = failed, null = no plan.
-  const [planState, setPlanState] = useState<{
-    userId: string
-    plan: TrainingPlan | null | undefined
-  } | null>(null)
+  // the next fetch is in flight.
+  const [planState, setPlanState] = useState<PlanState | null>(null)
+  const [isGeneratingPlan, setIsGeneratingPlan] = useState(false)
   const requestIdRef = useRef(0)
 
   const refreshData = useCallback(async () => {
@@ -50,6 +34,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
       setPlanState({
         userId,
+        error: null,
         plan: {
           id: planData.id,
           userId: planData.userId,
@@ -63,11 +48,18 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     } catch (error) {
       if (requestId !== requestIdRef.current) return
 
-      console.error("Error refreshing data:", error)
-      // Only a 404 proves there is no plan; other failures stay unresolved.
+      // Only a 404 proves there is no plan; anything else is a real failure.
+      const isMissing = (error as { status?: number }).status === 404
+      if (!isMissing) console.error("Error loading plan:", error)
+
       setPlanState({
         userId,
-        plan: (error as { status?: number }).status === 404 ? null : undefined,
+        plan: null,
+        error: isMissing
+          ? null
+          : error instanceof Error
+            ? error.message
+            : "Could not load your plan.",
       })
     }
   }, [userId])
@@ -79,9 +71,10 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     void refreshData()
   }, [userId, refreshData])
 
-  const isResolved = userId === null || planState?.userId === userId
-  const plan = userId === null ? null : isResolved ? planState?.plan : undefined
-  const isLoading = session.isPending || !isResolved
+  const resolved = userId && planState?.userId === userId ? planState : null
+  const isLoading = session.isPending || (userId !== null && resolved === null)
+  const plan = userId === null ? null : resolved ? resolved.plan : undefined
+  const planError = resolved?.error ?? null
 
   async function saveProfile(
     profileData: Omit<UserProfile, "userId" | "updatedAt">,
@@ -99,8 +92,13 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("User must be authenticated to generate plan")
     }
 
-    await api.generatePlan(userId)
-    await refreshData()
+    setIsGeneratingPlan(true)
+    try {
+      await api.generatePlan(userId)
+      await refreshData()
+    } finally {
+      setIsGeneratingPlan(false)
+    }
   }
 
   return (
@@ -108,7 +106,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         plan,
+        planError,
         isLoading,
+        isGeneratingPlan,
         saveProfile,
         generatePlan,
         refreshData,
@@ -117,12 +117,4 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       {children}
     </AuthContext.Provider>
   )
-}
-
-export function useAuth() {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider")
-  }
-  return context
 }

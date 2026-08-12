@@ -52,6 +52,8 @@ function ExerciseRow({
 }
 
 function DayCard({ schedule }: { schedule: DaySchedule }) {
+  const exercises = schedule.exercises ?? []
+
   return (
     <Card variant="bordered" className="overflow-hidden">
       <div className="flex items-center justify-between mb-4">
@@ -61,7 +63,7 @@ function DayCard({ schedule }: { schedule: DaySchedule }) {
         </div>
         <div className="flex items-center gap-2 text-sm text-muted">
           <Dumbbell className="h-4 w-4" />
-          <span>{schedule.exercises.length} exercises</span>
+          <span>{exercises.length} exercises</span>
         </div>
       </div>
 
@@ -77,7 +79,7 @@ function DayCard({ schedule }: { schedule: DaySchedule }) {
           </thead>
 
           <tbody>
-            {schedule.exercises.map((exercise, key) => (
+            {exercises.map((exercise, key) => (
               <ExerciseRow key={key} exercise={exercise} index={key} />
             ))}
           </tbody>
@@ -92,10 +94,20 @@ interface PlanDisplayProps {
 }
 
 export function PlanDisplay({ weeklySchedule }: PlanDisplayProps) {
+  if (!weeklySchedule?.length) {
+    return (
+      <Card variant="bordered" className="mb-8 text-center py-12">
+        <p className="text-muted text-sm">
+          This plan has no workout days. Try regenerating it.
+        </p>
+      </Card>
+    )
+  }
+
   return (
     <div className="space-y-6 mb-8">
       {weeklySchedule.map((schedule, key) => (
-        <DayCard key={key} schedule={schedule}></DayCard>
+        <DayCard key={key} schedule={schedule} />
       ))}
     </div>
   )
