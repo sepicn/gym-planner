@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1",
-    "dev:server": "tsx watch src/index.ts"
+    "test": "vitest run",
+    "dev:server": "tsx watch src/index.ts",
+    "test:watch": "vitest"
   },
   "keywords": [],
   "author": "",
@@ -32,6 +33,7 @@
     "@types/pg": "^8.16.0",
     "prisma": "^7.4.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.1.10"
   }
 }

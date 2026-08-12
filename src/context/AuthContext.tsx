@@ -1,7 +1,13 @@
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
-import { useStore } from "@neondatabase/neon-js/auth/react"
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type ReactNode,
+} from "react"
 import type { TrainingPlan, User, UserProfile } from "../types"
-import { authClient } from "../lib/auth"
+import { sessionStore } from "../lib/auth"
 import { api, ApiError, type PlanSummary } from "../lib/api"
 import { AuthContext } from "./auth-context"
 
@@ -24,7 +30,10 @@ async function orNullOn404<T>(promise: Promise<T>): Promise<T | null> {
 }
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
-  const session = useStore(authClient.useSession)
+  const session = useSyncExternalStore(
+    sessionStore.subscribe,
+    sessionStore.getSnapshot,
+  )
   const user = (session.data?.user as User | undefined) ?? null
   const userId = user?.id ?? null
 

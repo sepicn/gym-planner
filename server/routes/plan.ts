@@ -110,11 +110,11 @@ planRouter.get("/:id", async (req: Request, res: Response) => {
   res.json(serializePlan(plan))
 })
 
+// plan_text duplicates plan_json, so it stays in the row but off the wire.
 function serializePlan(plan: {
   id: string
   user_id: string
   plan_json: unknown
-  plan_text: string
   version: number
   created_at: Date
 }) {
@@ -122,7 +122,6 @@ function serializePlan(plan: {
     id: plan.id,
     userId: plan.user_id,
     planJson: plan.plan_json,
-    planText: plan.plan_text,
     version: plan.version,
     createdAt: plan.created_at,
   }

@@ -26,7 +26,6 @@ interface PlanResponse {
     weeklySchedule: DaySchedule[]
     progression: string
   }
-  planText: string
   version: number
   createdAt: string
 }

@@ -2,6 +2,7 @@ import OpenAi from "openai"
 import type { UserProfile } from "../../types"
 import { env } from "../../lib/env"
 import { HttpError } from "../../lib/HttpError"
+import { parseModelJson } from "../../lib/parseModelJson"
 import { trainingPlanSchema, type ValidatedTrainingPlan } from "../../schemas/plan"
 
 const REQUEST_TIMEOUT_MS = 90_000
@@ -34,7 +35,7 @@ export async function generateTrainingPlan(
       try {
         const content = await requestCompletion(model, prompt)
         const plan = trainingPlanSchema.parse(
-          applyDefaults(parseJson(content), normalizedProfile),
+          applyDefaults(parseModelJson(content), normalizedProfile),
         )
 
         if (plan.weeklySchedule.length === normalizedProfile.days_per_week) {
@@ -99,27 +100,6 @@ async function requestCompletion(model: string, prompt: string) {
   }
 
   return content
-}
-
-// Models ignore "no markdown" often enough that unwrapping is cheaper than
-// another round trip.
-function parseJson(content: string): unknown {
-  const unfenced = content
-    .trim()
-    .replace(/^```(?:json)?\s*/i, "")
-    .replace(/\s*```$/, "")
-    .trim()
-
-  try {
-    return JSON.parse(unfenced)
-  } catch {
-    const start = unfenced.indexOf("{")
-    const end = unfenced.lastIndexOf("}")
-    if (start === -1 || end <= start) {
-      throw new Error("response was not JSON")
-    }
-    return JSON.parse(unfenced.slice(start, end + 1))
-  }
 }
 
 function normalizeProfile(profile: UserProfile) {

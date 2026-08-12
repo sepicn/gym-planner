@@ -2,6 +2,15 @@ import { createAuthClient } from "@neondatabase/neon-js/auth"
 
 export const authClient = createAuthClient(import.meta.env.VITE_NEON_AUTH_URL)
 
+// useSession is a nanostore atom. Reading it through useSyncExternalStore
+// keeps the auth UI package out of the landing page bundle, which importing
+// useStore from neon-js/auth/react would drag in. Both functions must keep a
+// stable identity, hence module scope.
+export const sessionStore = {
+  subscribe: (onChange: () => void) => authClient.useSession.subscribe(onChange),
+  getSnapshot: () => authClient.useSession.get(),
+}
+
 // Neon injects the project JWT into session.token from the set-auth-jwt
 // response header; this mirrors the SDK's own getJWTToken().
 export async function getAuthToken(): Promise<string | null> {
