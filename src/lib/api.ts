@@ -1,47 +1,68 @@
-import type { UserProfile } from "../types"
+import type { DaySchedule, PlanOverview, UserProfile } from "../types"
+import { getAuthToken } from "./auth"
+
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001"
 
-async function post<T>(path: string, body: object): Promise<T> {
+export class ApiError extends Error {
+  readonly status: number
+
+  constructor(message: string, status: number) {
+    super(message)
+    this.name = "ApiError"
+    this.status = status
+  }
+}
+
+export interface CurrentPlanResponse {
+  id: string
+  userId: string
+  planJson: {
+    overview: PlanOverview
+    weeklySchedule: DaySchedule[]
+    progression: string
+  }
+  planText: string
+  version: number
+  createdAt: string
+}
+
+// The server derives the user from this token, so no route takes a user id.
+async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = await getAuthToken()
+
+  if (!token) {
+    throw new ApiError("Your session has expired. Please sign in again.", 401)
+  }
+
   const res = await fetch(`${BASE_URL}/api${path}`, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
+    ...init,
+    headers: {
+      ...(init.body ? { "Content-Type": "application/json" } : {}),
+      Authorization: `Bearer ${token}`,
+      ...init.headers,
+    },
   })
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || "Request failed")
-  }
-
-  return res.json()
-}
-
-async function get(path: string) {
-  const res = await fetch(`${BASE_URL}/api${path}`)
-
-  if (!res.ok) {
-    const data = await res.json().catch(() => ({}))
-    const error = new Error(data.error || "Request failed")
-    ;(error as Error & { status?: number }).status = res.status
-    throw error
+    throw new ApiError(data.error || "Request failed", res.status)
   }
 
   return res.json()
 }
 
 export const api = {
-  saveProfile: (
-    userId: string,
-    profile: Omit<UserProfile, "userId" | "updatedAt">,
-  ) => {
-    return post<{ success: true }>("/profile", { userId, ...profile })
-  },
+  saveProfile: (profile: Omit<UserProfile, "userId" | "updatedAt">) =>
+    request<{ success: true }>("/profile", {
+      method: "POST",
+      body: JSON.stringify(profile),
+    }),
 
-  generatePlan: (userId: string) => {
-    return post("/plan/generate", { userId })
-  },
+  generatePlan: () =>
+    request<{ id: string; version: number; createdAt: string }>(
+      "/plan/generate",
+      { method: "POST" },
+    ),
 
-  getCurrentPlan:(userId:string)=>{
-    return get(`/plan/current?userId=${userId}`)
-  }
+  getCurrentPlan: () => request<CurrentPlanResponse>("/plan/current"),
 }

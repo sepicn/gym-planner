@@ -19,6 +19,7 @@ model training_plans{
   plan_text String
   version Int @default(1)
   created_at DateTime @default(now()) @db.Timestamptz(6)
+  profile user_profiles @relation(fields: [user_id], references: [user_id], onDelete: Cascade)
   @@index([user_id], map: "idx_training_plans_user_id")
 }
 
@@ -32,4 +33,5 @@ model user_profiles{
   injuries String?
   preferred_split String @db.VarChar(20)
   updated_at DateTime @default(now()) @db.Timestamptz(6)
+  training_plans training_plans[]
 }

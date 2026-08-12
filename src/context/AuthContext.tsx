@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useStore } from "@neondatabase/neon-js/auth/react"
 import type { TrainingPlan, User, UserProfile } from "../types"
 import { authClient } from "../lib/auth"
-import { api } from "../lib/api"
+import { api, ApiError } from "../lib/api"
 import { AuthContext } from "./auth-context"
 
 interface PlanState {
@@ -29,7 +29,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     const requestId = ++requestIdRef.current
 
     try {
-      const planData = await api.getCurrentPlan(userId)
+      const planData = await api.getCurrentPlan()
       if (requestId !== requestIdRef.current) return
 
       setPlanState({
@@ -49,7 +49,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       if (requestId !== requestIdRef.current) return
 
       // Only a 404 proves there is no plan; anything else is a real failure.
-      const isMissing = (error as { status?: number }).status === 404
+      const isMissing = error instanceof ApiError && error.status === 404
       if (!isMissing) console.error("Error loading plan:", error)
 
       setPlanState({
@@ -83,7 +83,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       throw new Error("User must be authenticated to save profile")
     }
 
-    await api.saveProfile(userId, profileData)
+    await api.saveProfile(profileData)
     await refreshData()
   }
 
@@ -94,7 +94,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
 
     setIsGeneratingPlan(true)
     try {
-      await api.generatePlan(userId)
+      await api.generatePlan()
       await refreshData()
     } finally {
       setIsGeneratingPlan(false)

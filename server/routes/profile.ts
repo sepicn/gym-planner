@@ -1,66 +1,39 @@
 import { Router, type Request, type Response } from "express"
 import { prisma } from "../lib/prisma"
+import { requireAuth } from "../middleware/requireAuth"
+import { profileInputSchema } from "../schemas/profile"
 
 export const profileRouter = Router()
 
+profileRouter.use(requireAuth)
+
 profileRouter.post("/", async (req: Request, res: Response) => {
-  try {
-    const { userId, ...profileData } = req.body
+  const profile = profileInputSchema.parse(req.body)
+  const injuries = profile.injuries?.trim() || null
 
-    if (!userId) {
-      return res.status(400).json({ error: "User ID is required" })
-    }
-
-    const {
-      goal,
-      experience,
-      daysPerWeek,
-      sessionLength,
-      equipment,
+  await prisma.user_profiles.upsert({
+    where: { user_id: req.userId },
+    update: {
+      goal: profile.goal,
+      experience: profile.experience,
+      days_per_week: profile.daysPerWeek,
+      session_length: profile.sessionLength,
+      equipment: profile.equipment,
       injuries,
-      preferredSplit,
-    } = profileData
+      preferred_split: profile.preferredSplit,
+      updated_at: new Date(),
+    },
+    create: {
+      user_id: req.userId,
+      goal: profile.goal,
+      experience: profile.experience,
+      days_per_week: profile.daysPerWeek,
+      session_length: profile.sessionLength,
+      equipment: profile.equipment,
+      injuries,
+      preferred_split: profile.preferredSplit,
+    },
+  })
 
-    if (
-      !goal ||
-      !experience ||
-      !daysPerWeek ||
-      !sessionLength ||
-      !equipment ||
-      !preferredSplit
-    ) {
-      return res.status(400).json({ error: "Missing required fields" })
-    }
-
-    await prisma.user_profiles.upsert({
-      where: { user_id: userId },
-      update: {
-        goal,
-        experience,
-        days_per_week: daysPerWeek,
-        session_length: sessionLength,
-        equipment,
-        injuries: injuries || null,
-        preferred_split: preferredSplit,
-        updated_at: new Date(),
-      },
-      create:{
-        user_id: userId,
-        goal,
-        experience,
-        days_per_week: daysPerWeek,
-        session_length:sessionLength,
-        equipment,
-        injuries: injuries || null,
-        preferred_split: preferredSplit
-      }
-    })
-
-
-    res.json({success: true})
-
-  } catch (error) {
-    console.error("Error saving profile: ", error)
-    res.status(500).json({ error: "Failed to save profile" })
-  }
+  res.json({ success: true })
 })
