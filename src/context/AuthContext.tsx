@@ -13,7 +13,7 @@ import { api } from "../lib/api"
 
 interface AuthUIContextType {
   user: User | null
-  plan: TrainingPlan | null
+  plan: TrainingPlan | null | undefined
   isLoading: boolean
   saveProfile: (
     profile: Omit<UserProfile, "userId" | "updatedAt">,
@@ -28,7 +28,8 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const [neonUser, setNeonUser] = useState<any>(null)
   const [isLoading, setIsLoading] = useState(true)
   const isRefreshingRef = useRef(false)
-  const [plan, setPlan] = useState<TrainingPlan | null>(null)
+  // undefined = jos ne znamo (fetch nije uspeo), null = server potvrdio da plana nema
+  const [plan, setPlan] = useState<TrainingPlan | null | undefined>(undefined)
 
   useEffect(() => {
     async function loadUser() {
@@ -38,26 +39,15 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
           setNeonUser(result.data.user)
         } else {
           setNeonUser(null)
+          setIsLoading(false)
         }
       } catch (err) {
         setNeonUser(null)
-      } finally {
         setIsLoading(false)
       }
     }
     loadUser()
   }, [])
-
-  useEffect(() => {
-    if (!isLoading) {
-      if (neonUser?.id) {
-        refreshData()
-      } else {
-        setPlan(null)
-      }
-      setIsLoading(false)
-    }
-  }, [neonUser?.id, isLoading])
 
   // refreshData memoize
 
@@ -69,25 +59,35 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     try {
       // const profileData =
 
-      const planData = await api.getCurrentPlan(neonUser.id).catch(() => null)
+      const planData = await api.getCurrentPlan(neonUser.id)
 
-      if (planData) {
-        setPlan({
-          id: planData.id,
-          userId: planData.userId,
-          overview: planData.planJson.overview,
-          weeklySchedule: planData.planJson.weeklySchedule,
-          progression: planData.planJson.progression,
-          version: planData.version,
-          createdAt: planData.createdAt,
-        })
-      }
+      setPlan({
+        id: planData.id,
+        userId: planData.userId,
+        overview: planData.planJson.overview,
+        weeklySchedule: planData.planJson.weeklySchedule,
+        progression: planData.planJson.progression,
+        version: planData.version,
+        createdAt: planData.createdAt,
+      })
     } catch (error) {
       console.error("Error refreshing data:", error)
+      // samo 404 znaci "nema plana"; kod ostalih gresaka ostaje undefined
+      setPlan(
+        (error as { status?: number }).status === 404 ? null : undefined,
+      )
     } finally {
       isRefreshingRef.current = false
     }
   }, [neonUser?.id])
+
+  useEffect(() => {
+    if (!neonUser?.id) {
+      setPlan(null)
+      return
+    }
+    refreshData().finally(() => setIsLoading(false))
+  }, [neonUser?.id, refreshData])
 
   async function saveProfile(
     profileData: Omit<UserProfile, "userId" | "updatedAt">,

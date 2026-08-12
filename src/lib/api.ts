@@ -21,7 +21,9 @@ async function get(path: string) {
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
-    throw new Error(data.error || "Request failed")
+    const error = new Error(data.error || "Request failed")
+    ;(error as Error & { status?: number }).status = res.status
+    throw error
   }
 
   return res.json()
