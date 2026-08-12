@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express"
 import { prisma } from "../lib/prisma"
-import { requireAuth } from "../middleware/requireAuth"
+import { getUserId, requireAuth } from "../middleware/requireAuth"
 import { HttpError } from "../lib/HttpError"
 import { profileInputSchema } from "../schemas/profile"
 
@@ -10,7 +10,7 @@ profileRouter.use(requireAuth)
 
 profileRouter.get("/", async (req: Request, res: Response) => {
   const profile = await prisma.user_profiles.findUnique({
-    where: { user_id: req.userId },
+    where: { user_id: getUserId(req) },
   })
 
   if (!profile) {
@@ -35,7 +35,7 @@ profileRouter.post("/", async (req: Request, res: Response) => {
   const injuries = profile.injuries?.trim() || null
 
   await prisma.user_profiles.upsert({
-    where: { user_id: req.userId },
+    where: { user_id: getUserId(req) },
     update: {
       goal: profile.goal,
       experience: profile.experience,
@@ -47,7 +47,7 @@ profileRouter.post("/", async (req: Request, res: Response) => {
       updated_at: new Date(),
     },
     create: {
-      user_id: req.userId,
+      user_id: getUserId(req),
       goal: profile.goal,
       experience: profile.experience,
       days_per_week: profile.daysPerWeek,

@@ -1,4 +1,9 @@
-import type { DaySchedule, PlanOverview, UserProfile } from "../types"
+import type {
+  DaySchedule,
+  PlanOverview,
+  TrainingPlan,
+  UserProfile,
+} from "../types"
 import { getAuthToken } from "./auth"
 
 const BASE_URL = import.meta.env.VITE_API_URL || "http://localhost:3001"
@@ -13,7 +18,7 @@ export class ApiError extends Error {
   }
 }
 
-export interface CurrentPlanResponse {
+interface PlanResponse {
   id: string
   userId: string
   planJson: {
@@ -24,6 +29,25 @@ export interface CurrentPlanResponse {
   planText: string
   version: number
   createdAt: string
+}
+
+export interface PlanSummary {
+  id: string
+  version: number
+  createdAt: string
+}
+
+// The stored shape nests the plan body under planJson; callers want it flat.
+function toTrainingPlan(response: PlanResponse): TrainingPlan {
+  return {
+    id: response.id,
+    userId: response.userId,
+    overview: response.planJson.overview,
+    weeklySchedule: response.planJson.weeklySchedule,
+    progression: response.planJson.progression,
+    version: response.version,
+    createdAt: response.createdAt,
+  }
 }
 
 // The server derives the user from this token, so no route takes a user id.
@@ -66,5 +90,11 @@ export const api = {
       { method: "POST" },
     ),
 
-  getCurrentPlan: () => request<CurrentPlanResponse>("/plan/current"),
+  getCurrentPlan: async () =>
+    toTrainingPlan(await request<PlanResponse>("/plan/current")),
+
+  getPlan: async (id: string) =>
+    toTrainingPlan(await request<PlanResponse>(`/plan/${id}`)),
+
+  getPlanHistory: () => request<PlanSummary[]>("/plan/history"),
 }

@@ -2,13 +2,14 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 import { useStore } from "@neondatabase/neon-js/auth/react"
 import type { TrainingPlan, User, UserProfile } from "../types"
 import { authClient } from "../lib/auth"
-import { api, ApiError } from "../lib/api"
+import { api, ApiError, type PlanSummary } from "../lib/api"
 import { AuthContext } from "./auth-context"
 
 interface UserDataState {
   userId: string
   plan: TrainingPlan | null
   profile: UserProfile | null
+  planHistory: PlanSummary[]
   error: string | null
 }
 
@@ -40,26 +41,14 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     const requestId = ++requestIdRef.current
 
     try {
-      const [planResponse, profile] = await Promise.all([
+      const [plan, profile, planHistory] = await Promise.all([
         orNullOn404(api.getCurrentPlan()),
         orNullOn404(api.getProfile()),
+        api.getPlanHistory(),
       ])
       if (requestId !== requestIdRef.current) return
 
-      setData({
-        userId,
-        error: null,
-        profile,
-        plan: planResponse && {
-          id: planResponse.id,
-          userId: planResponse.userId,
-          overview: planResponse.planJson.overview,
-          weeklySchedule: planResponse.planJson.weeklySchedule,
-          progression: planResponse.planJson.progression,
-          version: planResponse.version,
-          createdAt: planResponse.createdAt,
-        },
-      })
+      setData({ userId, error: null, plan, profile, planHistory })
     } catch (error) {
       if (requestId !== requestIdRef.current) return
 
@@ -68,6 +57,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         userId,
         plan: null,
         profile: null,
+        planHistory: [],
         error:
           error instanceof Error ? error.message : "Could not load your data.",
       })
@@ -86,6 +76,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const isLoading = isSessionLoading || (userId !== null && resolved === null)
   const plan = userId === null ? null : resolved ? resolved.plan : undefined
   const profile = userId === null ? null : resolved ? resolved.profile : undefined
+  const planHistory = resolved?.planHistory ?? []
   const planError = resolved?.error ?? null
 
   async function saveProfile(
@@ -119,6 +110,7 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
         user,
         plan,
         profile,
+        planHistory,
         planError,
         isSessionLoading,
         isLoading,

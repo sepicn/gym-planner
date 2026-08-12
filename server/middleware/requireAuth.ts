@@ -13,9 +13,20 @@ declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace Express {
     interface Request {
-      userId: string
+      // Optional on purpose: only requireAuth sets it. Read it through
+      // getUserId so a route mounted without the middleware fails loudly
+      // instead of passing undefined into Prisma, where an undefined filter
+      // is silently dropped and would match another user's rows.
+      userId?: string
     }
   }
+}
+
+export function getUserId(req: Request): string {
+  if (!req.userId) {
+    throw new HttpError(401, "Not authenticated")
+  }
+  return req.userId
 }
 
 function readBearerToken(req: Request): string | null {

@@ -1,11 +1,14 @@
 import { createContext, useContext } from "react"
 import type { TrainingPlan, User, UserProfile } from "../types"
+import type { PlanSummary } from "../lib/api"
 
 export interface AuthUIContextType {
   user: User | null
   // undefined until resolved; null once the server confirms there is none
   plan: TrainingPlan | null | undefined
   profile: UserProfile | null | undefined
+  // Newest first, including the current plan
+  planHistory: PlanSummary[]
   planError: string | null
   // Only the session lookup - use this to decide whether someone is signed in
   isSessionLoading: boolean

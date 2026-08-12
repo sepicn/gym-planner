@@ -15,6 +15,8 @@ import { Card } from "../components/ui/Card"
 import { Skeleton } from "../components/ui/Skeleton"
 import { ConfirmDialog } from "../components/ui/ConfirmDialog"
 import { PlanDisplay } from "../components/plan/PlanDisplay"
+import { api } from "../lib/api"
+import type { TrainingPlan } from "../types"
 
 function PageShell({ children }: { children: ReactNode }) {
   return (
@@ -65,7 +67,8 @@ function formatDate(dateString: string) {
 export default function Profile() {
   const {
     isLoading,
-    plan,
+    plan: latestPlan,
+    planHistory,
     planError,
     generatePlan,
     isGeneratingPlan,
@@ -74,6 +77,28 @@ export default function Profile() {
   const { showToast } = useToast()
   const [isConfirmOpen, setIsConfirmOpen] = useState(false)
   const [isRetrying, setIsRetrying] = useState(false)
+  // null means "showing the latest plan" from context
+  const [olderPlan, setOlderPlan] = useState<TrainingPlan | null>(null)
+  const [isSwitchingVersion, setIsSwitchingVersion] = useState(false)
+
+  async function handleVersionChange(planId: string) {
+    if (!planId || planId === latestPlan?.id) {
+      setOlderPlan(null)
+      return
+    }
+
+    setIsSwitchingVersion(true)
+    try {
+      setOlderPlan(await api.getPlan(planId))
+    } catch (err) {
+      showToast(
+        err instanceof Error ? err.message : "Could not load that version.",
+        "error",
+      )
+    } finally {
+      setIsSwitchingVersion(false)
+    }
+  }
 
   async function handleRetry() {
     setIsRetrying(true)
@@ -87,6 +112,7 @@ export default function Profile() {
   async function handleRegenerate() {
     try {
       await generatePlan()
+      setOlderPlan(null)
       showToast("Your plan has been regenerated.", "success")
     } catch (err) {
       showToast(
@@ -124,29 +150,71 @@ export default function Profile() {
     )
   }
 
-  if (!plan) {
+  if (!latestPlan) {
     return <Navigate to="/onboarding" replace />
   }
+
+  const plan = olderPlan ?? latestPlan
+  const isViewingOlder = olderPlan !== null
 
   return (
     <PageShell>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
         <div>
           <h1 className="text-3xl font-bold mb-1">Your Training Plan</h1>
-          <p className="text-muted">
-            Version {plan.version} &middot; Created {formatDate(plan.createdAt)}
-          </p>
+          <p className="text-muted">Created {formatDate(plan.createdAt)}</p>
         </div>
-        <Button
-          variant="secondary"
-          onClick={() => setIsConfirmOpen(true)}
-          isLoading={isGeneratingPlan}
-          loadingText="Generating..."
-        >
-          <RefreshCcw className="w-4 h-4" />
-          Regenerate Plan
-        </Button>
+
+        <div className="flex items-center gap-3">
+          {planHistory.length > 1 && (
+            <select
+              aria-label="Plan version"
+              value={plan.id}
+              disabled={isSwitchingVersion || isGeneratingPlan}
+              onChange={(event) => handleVersionChange(event.target.value)}
+              className="px-4 py-2.5 bg-card border border-border rounded-xl text-foreground text-sm focus:outline-none focus:border-accent transition-colors cursor-pointer disabled:opacity-50"
+            >
+              {planHistory.map((entry, index) => (
+                <option key={entry.id} value={entry.id}>
+                  Version {entry.version}
+                  {index === 0 ? " (latest)" : ""}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <Button
+            variant="secondary"
+            onClick={() => setIsConfirmOpen(true)}
+            isLoading={isGeneratingPlan}
+            loadingText="Generating..."
+            disabled={isViewingOlder}
+            title={
+              isViewingOlder
+                ? "Switch back to the latest version first"
+                : undefined
+            }
+          >
+            <RefreshCcw className="w-4 h-4" />
+            Regenerate Plan
+          </Button>
+        </div>
       </div>
+
+      {isViewingOlder && (
+        <Card
+          variant="bordered"
+          className="mb-8 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-accent/40"
+        >
+          <p className="text-sm text-muted">
+            You are viewing version {plan.version}, replaced on{" "}
+            {formatDate(latestPlan.createdAt)}.
+          </p>
+          <Button size="sm" onClick={() => setOlderPlan(null)}>
+            Back to latest
+          </Button>
+        </Card>
+      )}
 
       <div className="grid md:grid-cols-4 gap-4 mb-8">
         <Card variant="bordered" className="flex items-center gap-3">

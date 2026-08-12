@@ -1,4 +1,5 @@
-import { Dumbbell, Info } from "lucide-react"
+import { useState } from "react"
+import { ChevronDown, Dumbbell, Info, Repeat2 } from "lucide-react"
 import type { DaySchedule, Exercise } from "../../types"
 import { Card } from "../ui/Card"
 
@@ -9,6 +10,9 @@ function ExerciseRow({
   exercise: Exercise
   index: number
 }) {
+  const [showAlternatives, setShowAlternatives] = useState(false)
+  const alternatives = exercise.alternatives ?? []
+
   return (
     <tr className="border-b border-border last:border-0">
       <td className="py-3 pr-4">
@@ -21,6 +25,36 @@ function ExerciseRow({
                 <Info className="w-3 h-3" />
                 {exercise.notes}
               </p>
+            )}
+
+            {alternatives.length > 0 && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setShowAlternatives((open) => !open)}
+                  aria-expanded={showAlternatives}
+                  className="mt-1 inline-flex items-center gap-1 text-xs text-muted hover:text-foreground transition-colors cursor-pointer"
+                >
+                  <Repeat2 className="w-3 h-3" />
+                  {alternatives.length}{" "}
+                  {alternatives.length === 1 ? "alternative" : "alternatives"}
+                  <ChevronDown
+                    className={`w-3 h-3 transition-transform ${
+                      showAlternatives ? "rotate-180" : ""
+                    }`}
+                  />
+                </button>
+
+                {showAlternatives && (
+                  <ul className="mt-1.5 space-y-1 border-l border-border pl-3">
+                    {alternatives.map((alternative) => (
+                      <li key={alternative} className="text-xs text-muted">
+                        {alternative}
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </>
             )}
           </div>
         </div>
