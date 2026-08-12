@@ -18,6 +18,19 @@
     font-family: var(--font-sans);
     background-color: var(--color-background);
     color: var(--color-foreground);
+
+    /* Reserve the scrollbar track even on pages that fit the viewport, so a
+       short page and a long one are the same width. Without this the fixed
+       navbar jumps sideways when navigating between them. */
+    scrollbar-gutter: stable;
+  }
+
+  /* The auth menu locks scrolling through react-remove-scroll, which offsets
+     body to compensate for a scrollbar it expects to vanish. With a stable
+     gutter nothing vanishes, so that offset would introduce the very shift it
+     exists to prevent. Outranks the library's own !important rule. */
+  html body[data-scroll-locked] {
+    margin-right: 0 !important;
   }
 
   body {
