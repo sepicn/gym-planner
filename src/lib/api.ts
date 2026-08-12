@@ -57,14 +57,21 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
     throw new ApiError("Your session has expired. Please sign in again.", 401)
   }
 
-  const res = await fetch(`${BASE_URL}/api${path}`, {
-    ...init,
-    headers: {
-      ...(init.body ? { "Content-Type": "application/json" } : {}),
-      Authorization: `Bearer ${token}`,
-      ...init.headers,
-    },
-  })
+  let res: Response
+  try {
+    res = await fetch(`${BASE_URL}/api${path}`, {
+      ...init,
+      headers: {
+        ...(init.body ? { "Content-Type": "application/json" } : {}),
+        Authorization: `Bearer ${token}`,
+        ...init.headers,
+      },
+    })
+  } catch {
+    // fetch only rejects on network-level failures, where its own message is
+    // an unhelpful "Failed to fetch".
+    throw new ApiError(`Could not reach the server at ${BASE_URL}.`, 0)
+  }
 
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
