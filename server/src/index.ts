@@ -14,8 +14,6 @@ app.use(cors())
 app.use(cookieParser())
 app.use(express.json())
 
-// API Routes
-
 app.use("/api/profile", profileRouter)
 app.use("/api/plan", planRouter)
 

@@ -1,8 +1,6 @@
 import { Router, type Request, type Response } from "express"
 import { prisma } from "../lib/prisma"
 import { generateTrainingPlan } from "../src/lib/ai"
-import { error } from "node:console"
-import { version } from "node:os"
 
 export const planRouter = Router()
 
@@ -39,7 +37,7 @@ planRouter.post("/generate", async (req: Request, res: Response) => {
       console.error("AI generation failed", error)
       return res.status(500).json({
         error: "Failed to generate training plan. Please try again.",
-        details: error instanceof Error ? error.message : "Unknown user",
+        details: error instanceof Error ? error.message : "Unknown error",
       })
     }
 
@@ -91,7 +89,7 @@ planRouter.get("/current", async (req: Request, res: Response) => {
       createdAt: plan.created_at,
     })
   } catch (error) {
-    console.error("Error generating plan: ", error)
-    res.status(500).json({ error: "Failed to generate plan" })
+    console.error("Error fetching current plan: ", error)
+    res.status(500).json({ error: "Failed to fetch current plan" })
   }
 })

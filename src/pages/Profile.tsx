@@ -42,15 +42,20 @@ export default function Profile() {
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-8">
           <div>
             <h1 className="text-3xl font-bold mb-1">Your Training Plan</h1>
-            <p className=" text-muted">
-              Version {plan.version} Created {formatDate(plan.createdAt)}
+            <p className="text-muted">
+              Version {plan.version} &middot; Created {formatDate(plan.createdAt)}
             </p>
           </div>
-          <Button variant="secondary" className="gap-2">
-            <RefreshCcw
-              className="w-4 h-4"
-              onClick={async () => await generatePlan()}
-            />
+          <Button
+            variant="secondary"
+            className="gap-2"
+            onClick={() => {
+              void generatePlan().catch((err) =>
+                console.error("Error generating plan:", err),
+              )
+            }}
+          >
+            <RefreshCcw className="w-4 h-4" />
             Regenerate Plan
           </Button>
         </div>
@@ -90,13 +95,12 @@ export default function Profile() {
               <TrendingUp className="w-5 h-5 text-accent" />
             </div>
             <div>
-              <p className="text-muted text-xs">Vrsion</p>
+              <p className="text-muted text-xs">Version</p>
               <p className="font-medium text-sm">{plan.version}</p>
             </div>
           </Card>
         </div>
 
-        {/* Plan notes */}
         <Card variant="bordered" className="mb-8">
           <h2 className="font-semibold text-lg mb-2">Program notes</h2>
           <p className="text-muted text-sm leading-relaxed">
@@ -104,7 +108,6 @@ export default function Profile() {
           </p>
         </Card>
 
-        {/* Weekly Schedule */}
         <h2 className="font-semibold text-xl mb-4">Weekly Schedule</h2>
         <PlanDisplay weeklySchedule={plan.weeklySchedule} />
 

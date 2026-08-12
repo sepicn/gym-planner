@@ -7,7 +7,7 @@ import { Textarea } from "../components/ui/Textarea"
 import { Button } from "../components/ui/Button"
 import { ArrowRight, Loader2 } from "lucide-react"
 import type { UserProfile } from "../types"
-import { Navigate, useNavigate } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 
 const goalOptions = [
   { value: "bulk", label: "Build Muscle (Bulk)" },
@@ -52,7 +52,7 @@ const splitOptions = [
 ]
 
 export default function Onboarding() {
-  const { user, saveProfile , generatePlan} = useAuth()
+  const { user, isLoading, saveProfile, generatePlan } = useAuth()
   const [isGenerating, setIsGenerating] = useState(false)
   const [error, setError] = useState("")
   const [formData, setFormData] = useState({
@@ -66,6 +66,10 @@ export default function Onboarding() {
   })
   const navigate = useNavigate()
 
+  // Wait for the session; user is null on the first render.
+  if (isLoading) {
+    return null
+  }
 
   if (!user) {
     return <RedirectToSignIn />
@@ -77,6 +81,7 @@ export default function Onboarding() {
 
   async function handleQuestionnaire(e: React.SubmitEvent) {
     e.preventDefault()
+    setError("")
 
     const profile: Omit<UserProfile, "userId" | "updatedAt"> = {
       goal: formData.goal as UserProfile["goal"],
@@ -103,8 +108,6 @@ export default function Onboarding() {
     <SignedIn>
       <div className="min-h-screen pt-24 pb-12 px-6">
         <div className="max-w-xl mx-auto">
-          {/* Progress Indicator */}
-
           {!isGenerating ? (
             <Card variant="bordered">
               <h1 className="text-2xl font-bold mb-2">
@@ -114,11 +117,7 @@ export default function Onboarding() {
                 Help us create the perfect plan for you.
               </p>
 
-              <form
-                action=""
-                className="space-y-5"
-                onSubmit={handleQuestionnaire}
-              >
+              <form className="space-y-5" onSubmit={handleQuestionnaire}>
                 <Select
                   id="goal"
                   label="What's your primary goal?"
@@ -175,6 +174,15 @@ export default function Onboarding() {
                   value={formData.injuries}
                   onChange={(e) => updateForm("injuries", e.target.value)}
                 />
+                {error && (
+                  <p
+                    role="alert"
+                    className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-400"
+                  >
+                    {error}
+                  </p>
+                )}
+
                 <div className="flex gap-3 pt-2">
                   <Button type="submit" className="flex-1 gap-2">
                     Generate My Plan <ArrowRight className="w-4 h-4" />
@@ -187,7 +195,7 @@ export default function Onboarding() {
               <Loader2 className="w-12 h-12 text-accent mx-auto mb-6 animate-spin" />
               <h1 className="text-2xl font-bold mb-2">Creating your Plan</h1>
               <p className="text-muted">
-                Our Ai is building your personalized training program...
+                Our AI is building your personalized training program...
               </p>
             </Card>
           )}

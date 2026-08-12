@@ -60,12 +60,12 @@ function DayCard({ schedule }: { schedule: DaySchedule }) {
           <p className="text-sm text-accent">{schedule.focus}</p>
         </div>
         <div className="flex items-center gap-2 text-sm text-muted">
-          <Dumbbell className="h-4w w-4" />
+          <Dumbbell className="h-4 w-4" />
           <span>{schedule.exercises.length} exercises</span>
         </div>
       </div>
 
-      <div className="overflow-x-auto mx-6 px-6">
+      <div className="overflow-x-auto -mx-6 px-6">
         <table className="w-full text-sm">
           <thead>
             <tr className="text-muted text-xs tracking-wider">

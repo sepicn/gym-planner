@@ -1,7 +1,6 @@
 import OpenAi from "openai"
 import dotenv from "dotenv"
 import type { UserProfile, TrainingPlan } from "../../types"
-import { error } from "node:console"
 
 dotenv.config()
 
@@ -21,7 +20,7 @@ export async function generateTrainingPlan(
   const apiKey = process.env.OPEN_ROUTER_KEY
 
   if (!apiKey) {
-    throw new Error("OPEN_ROUTER_KEY is not set in enviroment variables")
+    throw new Error("OPEN_ROUTER_KEY is not set in environment variables")
   }
 
   const openai = new OpenAi({
@@ -33,7 +32,6 @@ export async function generateTrainingPlan(
     },
   })
 
-  // Prompt
   const prompt = buildPrompt(normalizedProfile)
 
   // `reasoning` is an OpenRouter extension, not part of the OpenAI SDK types.

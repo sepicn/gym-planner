@@ -7,6 +7,7 @@ import {
   useState,
   type ReactNode,
 } from "react"
+import { useStore } from "@neondatabase/neon-js/auth/react"
 import type { TrainingPlan, User, UserProfile } from "../types"
 import { authClient } from "../lib/auth"
 import { api } from "../lib/api"
@@ -25,94 +26,87 @@ interface AuthUIContextType {
 const AuthContext = createContext<AuthUIContextType | null>(null)
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
-  const [neonUser, setNeonUser] = useState<any>(null)
-  const [isLoading, setIsLoading] = useState(true)
-  const isRefreshingRef = useRef(false)
-  // undefined = jos ne znamo (fetch nije uspeo), null = server potvrdio da plana nema
-  const [plan, setPlan] = useState<TrainingPlan | null | undefined>(undefined)
+  const session = useStore(authClient.useSession)
+  const user = (session.data?.user as User | undefined) ?? null
+  const userId = user?.id ?? null
 
-  useEffect(() => {
-    async function loadUser() {
-      try {
-        const result = await authClient.getSession()
-        if (result && result.data?.user) {
-          setNeonUser(result.data.user)
-        } else {
-          setNeonUser(null)
-          setIsLoading(false)
-        }
-      } catch (err) {
-        setNeonUser(null)
-        setIsLoading(false)
-      }
-    }
-    loadUser()
-  }, [])
-
-  // refreshData memoize
+  // Keyed to its owner so the previous account's plan can never surface while
+  // the next fetch is in flight. plan: undefined = failed, null = no plan.
+  const [planState, setPlanState] = useState<{
+    userId: string
+    plan: TrainingPlan | null | undefined
+  } | null>(null)
+  const requestIdRef = useRef(0)
 
   const refreshData = useCallback(async () => {
-    if (!neonUser || isRefreshingRef.current) return
+    if (!userId) return
 
-    isRefreshingRef.current = true
+    // Last request wins; earlier responses are dropped.
+    const requestId = ++requestIdRef.current
 
     try {
-      // const profileData =
+      const planData = await api.getCurrentPlan(userId)
+      if (requestId !== requestIdRef.current) return
 
-      const planData = await api.getCurrentPlan(neonUser.id)
-
-      setPlan({
-        id: planData.id,
-        userId: planData.userId,
-        overview: planData.planJson.overview,
-        weeklySchedule: planData.planJson.weeklySchedule,
-        progression: planData.planJson.progression,
-        version: planData.version,
-        createdAt: planData.createdAt,
+      setPlanState({
+        userId,
+        plan: {
+          id: planData.id,
+          userId: planData.userId,
+          overview: planData.planJson.overview,
+          weeklySchedule: planData.planJson.weeklySchedule,
+          progression: planData.planJson.progression,
+          version: planData.version,
+          createdAt: planData.createdAt,
+        },
       })
     } catch (error) {
+      if (requestId !== requestIdRef.current) return
+
       console.error("Error refreshing data:", error)
-      // samo 404 znaci "nema plana"; kod ostalih gresaka ostaje undefined
-      setPlan(
-        (error as { status?: number }).status === 404 ? null : undefined,
-      )
-    } finally {
-      isRefreshingRef.current = false
+      // Only a 404 proves there is no plan; other failures stay unresolved.
+      setPlanState({
+        userId,
+        plan: (error as { status?: number }).status === 404 ? null : undefined,
+      })
     }
-  }, [neonUser?.id])
+  }, [userId])
 
   useEffect(() => {
-    if (!neonUser?.id) {
-      setPlan(null)
-      return
-    }
-    refreshData().finally(() => setIsLoading(false))
-  }, [neonUser?.id, refreshData])
+    if (!userId) return
+    // setState runs after the await, not synchronously in the effect body.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void refreshData()
+  }, [userId, refreshData])
+
+  const isResolved = userId === null || planState?.userId === userId
+  const plan = userId === null ? null : isResolved ? planState?.plan : undefined
+  const isLoading = session.isPending || !isResolved
 
   async function saveProfile(
     profileData: Omit<UserProfile, "userId" | "updatedAt">,
   ) {
-    if (!neonUser) {
+    if (!userId) {
       throw new Error("User must be authenticated to save profile")
     }
 
-    await api.saveProfile(neonUser.id, profileData)
+    await api.saveProfile(userId, profileData)
     await refreshData()
   }
 
   async function generatePlan() {
-    if (!neonUser) {
+    if (!userId) {
       throw new Error("User must be authenticated to generate plan")
     }
 
-    await api.generatePlan(neonUser.id)
+    await api.generatePlan(userId)
     await refreshData()
   }
 
   return (
     <AuthContext.Provider
       value={{
-        user: neonUser,
+        user,
         plan,
         isLoading,
         saveProfile,
