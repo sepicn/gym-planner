@@ -15,7 +15,7 @@ export default function Navbar() {
           <span className="font-semibold text-lg">GymAI</span>
         </Link>
 
-        <nav>
+        <nav className="flex items-center gap-1">
           {user ? (
             <>
               <Link to="/profile">
@@ -23,7 +23,12 @@ export default function Navbar() {
                   My Plan
                 </Button>
               </Link>
-              <UserButton className=""/>
+              <Link to="/onboarding">
+                <Button variant="ghost" size="sm">
+                  Preferences
+                </Button>
+              </Link>
+              <UserButton />
             </>
           ) : (
             <>

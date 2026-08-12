@@ -3,9 +3,13 @@ import type { TrainingPlan, User, UserProfile } from "../types"
 
 export interface AuthUIContextType {
   user: User | null
-  // undefined until the plan is resolved; null once the server confirms none
+  // undefined until resolved; null once the server confirms there is none
   plan: TrainingPlan | null | undefined
+  profile: UserProfile | null | undefined
   planError: string | null
+  // Only the session lookup - use this to decide whether someone is signed in
+  isSessionLoading: boolean
+  // Session plus the user's data
   isLoading: boolean
   isGeneratingPlan: boolean
   saveProfile: (

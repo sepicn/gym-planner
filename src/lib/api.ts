@@ -52,6 +52,8 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
+  getProfile: () => request<UserProfile>("/profile"),
+
   saveProfile: (profile: Omit<UserProfile, "userId" | "updatedAt">) =>
     request<{ success: true }>("/profile", {
       method: "POST",

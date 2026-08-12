@@ -5,10 +5,21 @@ import { authClient } from "../lib/auth"
 import { api, ApiError } from "../lib/api"
 import { AuthContext } from "./auth-context"
 
-interface PlanState {
+interface UserDataState {
   userId: string
   plan: TrainingPlan | null
+  profile: UserProfile | null
   error: string | null
+}
+
+// A 404 is a valid answer here: the user simply has no plan or profile yet.
+async function orNullOn404<T>(promise: Promise<T>): Promise<T | null> {
+  try {
+    return await promise
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 404) return null
+    throw error
+  }
 }
 
 export default function AuthProvider({ children }: { children: ReactNode }) {
@@ -16,9 +27,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
   const user = (session.data?.user as User | undefined) ?? null
   const userId = user?.id ?? null
 
-  // Keyed to its owner so the previous account's plan can never surface while
+  // Keyed to its owner so the previous account's data can never surface while
   // the next fetch is in flight.
-  const [planState, setPlanState] = useState<PlanState | null>(null)
+  const [data, setData] = useState<UserDataState | null>(null)
   const [isGeneratingPlan, setIsGeneratingPlan] = useState(false)
   const requestIdRef = useRef(0)
 
@@ -29,37 +40,36 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     const requestId = ++requestIdRef.current
 
     try {
-      const planData = await api.getCurrentPlan()
+      const [planResponse, profile] = await Promise.all([
+        orNullOn404(api.getCurrentPlan()),
+        orNullOn404(api.getProfile()),
+      ])
       if (requestId !== requestIdRef.current) return
 
-      setPlanState({
+      setData({
         userId,
         error: null,
-        plan: {
-          id: planData.id,
-          userId: planData.userId,
-          overview: planData.planJson.overview,
-          weeklySchedule: planData.planJson.weeklySchedule,
-          progression: planData.planJson.progression,
-          version: planData.version,
-          createdAt: planData.createdAt,
+        profile,
+        plan: planResponse && {
+          id: planResponse.id,
+          userId: planResponse.userId,
+          overview: planResponse.planJson.overview,
+          weeklySchedule: planResponse.planJson.weeklySchedule,
+          progression: planResponse.planJson.progression,
+          version: planResponse.version,
+          createdAt: planResponse.createdAt,
         },
       })
     } catch (error) {
       if (requestId !== requestIdRef.current) return
 
-      // Only a 404 proves there is no plan; anything else is a real failure.
-      const isMissing = error instanceof ApiError && error.status === 404
-      if (!isMissing) console.error("Error loading plan:", error)
-
-      setPlanState({
+      console.error("Error loading user data:", error)
+      setData({
         userId,
         plan: null,
-        error: isMissing
-          ? null
-          : error instanceof Error
-            ? error.message
-            : "Could not load your plan.",
+        profile: null,
+        error:
+          error instanceof Error ? error.message : "Could not load your data.",
       })
     }
   }, [userId])
@@ -71,9 +81,11 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
     void refreshData()
   }, [userId, refreshData])
 
-  const resolved = userId && planState?.userId === userId ? planState : null
-  const isLoading = session.isPending || (userId !== null && resolved === null)
+  const resolved = userId && data?.userId === userId ? data : null
+  const isSessionLoading = session.isPending
+  const isLoading = isSessionLoading || (userId !== null && resolved === null)
   const plan = userId === null ? null : resolved ? resolved.plan : undefined
+  const profile = userId === null ? null : resolved ? resolved.profile : undefined
   const planError = resolved?.error ?? null
 
   async function saveProfile(
@@ -106,7 +118,9 @@ export default function AuthProvider({ children }: { children: ReactNode }) {
       value={{
         user,
         plan,
+        profile,
         planError,
+        isSessionLoading,
         isLoading,
         isGeneratingPlan,
         saveProfile,

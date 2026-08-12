@@ -64,7 +64,6 @@ function formatDate(dateString: string) {
 
 export default function Profile() {
   const {
-    user,
     isLoading,
     plan,
     planError,
@@ -101,10 +100,6 @@ export default function Profile() {
 
   if (isLoading) {
     return <ProfileSkeleton />
-  }
-
-  if (!user) {
-    return <Navigate to="/auth/sign-in" replace />
   }
 
   if (planError) {
