@@ -21,9 +21,21 @@ const generateLimiter = rateLimit({
   message: { error: "Too many plan generations. Try again later." },
 })
 
+// Caps total AI spend however many accounts exist, since sign-up is free.
+// The store is in memory, so the budget applies per server process.
+const globalGenerateLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 200,
+  standardHeaders: "draft-7",
+  legacyHeaders: false,
+  keyGenerator: () => "global",
+  message: { error: "Plan generation is busy right now. Try again later." },
+})
+
 planRouter.post(
   "/generate",
   generateLimiter,
+  globalGenerateLimiter,
   async (req: Request, res: Response) => {
     const profile = await prisma.user_profiles.findUnique({
       where: { user_id: getUserId(req) },

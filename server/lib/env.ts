@@ -3,7 +3,8 @@ import { z } from "zod"
 
 dotenv.config()
 
-const envSchema = z.object({
+const baseEnvSchema = z.object({
+  NODE_ENV: z.string().default("development"),
   PORT: z.coerce.number().int().positive().default(3001),
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required"),
   OPEN_ROUTER_KEY: z.string().min(1, "OPEN_ROUTER_KEY is required"),
@@ -19,6 +20,7 @@ const envSchema = z.object({
         .filter(Boolean),
     ),
   // Set once you have inspected a real token; tightens verification.
+  // Required in production so the iss/aud claims are always checked.
   NEON_AUTH_ISSUER: z.string().optional(),
   BASE_URL: z.url().default("http://localhost:3001"),
   // Tried in order. Free OpenRouter models come and go, so keep this override.
@@ -32,6 +34,14 @@ const envSchema = z.object({
         .filter(Boolean),
     ),
 })
+
+const envSchema = baseEnvSchema.refine(
+  (value) => value.NODE_ENV !== "production" || Boolean(value.NEON_AUTH_ISSUER),
+  {
+    path: ["NEON_AUTH_ISSUER"],
+    message: "NEON_AUTH_ISSUER is required when NODE_ENV=production",
+  },
+)
 
 const parsed = envSchema.safeParse(process.env)
 

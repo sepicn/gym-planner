@@ -172,7 +172,7 @@ cp .env.example .env && cp server/.env.example server/.env
 | `PORT`              |    ➖    | Defaults to `3001`.                                                             |
 | `BASE_URL`          |    ➖    | Sent to OpenRouter as the referer. Defaults to `http://localhost:3001`.         |
 | `CORS_ORIGINS`      |    ➖    | Comma-separated allowed origins. Defaults to `http://localhost:5173`.           |
-| `NEON_AUTH_ISSUER`  |    ➖    | Set to the token's `iss`/`aud` claim to tighten verification.                    |
+| `NEON_AUTH_ISSUER`  |    ➖    | Set to the token's `iss`/`aud` claim to tighten verification. Required when `NODE_ENV=production`. |
 | `AI_MODELS`         |    ➖    | Comma-separated OpenRouter models, tried in order. Free models come and go — this is the escape hatch. |
 
 > The server validates its environment with Zod on boot and exits with a readable list of

@@ -1,5 +1,6 @@
 import express from "express"
 import cors from "cors"
+import helmet from "helmet"
 import cookieParser from "cookie-parser"
 import { env } from "../lib/env"
 import { profileRouter } from "../routes/profile"
@@ -7,6 +8,8 @@ import { planRouter } from "../routes/plan"
 import { errorHandler, notFoundHandler } from "../middleware/errorHandler"
 
 const app = express()
+
+app.use(helmet())
 
 app.use(
   cors({

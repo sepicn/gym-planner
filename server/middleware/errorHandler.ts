@@ -17,6 +17,14 @@ export function errorHandler(
   if (res.headersSent) return next(error)
 
   if (error instanceof HttpError) {
+    // Server-side failures can carry upstream internals, so their details are
+    // logged and never sent to the client.
+    if (error.status >= 500) {
+      if (error.details !== undefined) {
+        console.error(`HTTP ${error.status} details:`, error.details)
+      }
+      return res.status(error.status).json({ error: error.message })
+    }
     return res
       .status(error.status)
       .json({ error: error.message, details: error.details })

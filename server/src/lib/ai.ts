@@ -63,10 +63,11 @@ export async function generateTrainingPlan(
     return closestPlan
   }
 
+  // Model names and upstream errors stay in the server log, off the wire.
+  console.error(`[AI] Every attempt failed:\n  ${failures.join("\n  ")}`)
   throw new HttpError(
     502,
     "The AI could not produce a valid plan. Please try again.",
-    failures,
   )
 }
 

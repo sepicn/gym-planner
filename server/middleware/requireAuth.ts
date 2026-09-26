@@ -50,6 +50,9 @@ export async function requireAuth(
 
   try {
     const { payload } = await jwtVerify(token, jwks, {
+      // Neon Auth (Better Auth) signs with EdDSA by default; ES256 and RS256
+      // are the other asymmetric options it can be configured for.
+      algorithms: ["EdDSA", "ES256", "RS256"],
       clockTolerance: 5,
       ...(env.NEON_AUTH_ISSUER
         ? { issuer: env.NEON_AUTH_ISSUER, audience: env.NEON_AUTH_ISSUER }

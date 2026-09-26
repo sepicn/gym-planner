@@ -8,14 +8,16 @@ export const exerciseSchema = z.object({
   reps: z.coerce.string().min(1),
   rest: z.coerce.string().min(1),
   rpe: z.coerce.number().min(1).max(10),
-  notes: z.string().optional(),
-  alternatives: z.array(z.string()).optional(),
+  // Model output is untrusted, so free text and lists are bounded before they
+  // are stored and served.
+  notes: z.string().max(500).optional(),
+  alternatives: z.array(z.string().max(500)).max(10).optional(),
 })
 
 export const dayScheduleSchema = z.object({
   day: z.string().trim().min(1),
   focus: z.string().trim().min(1),
-  exercises: z.array(exerciseSchema).min(1),
+  exercises: z.array(exerciseSchema).min(1).max(15),
 })
 
 export const trainingPlanSchema = z.object({
